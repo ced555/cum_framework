@@ -1,0 +1,65 @@
+--@name cum_framework/CUM engine
+--@author
+--@shared
+--@model models/props_c17/SuitCase001a.mdl
+
+-- Engine Values --
+local torquemin = 40
+local torquemax = 119
+local idlerpm = 900
+local maxrpm = 8000
+local flywheelweight = 0.06
+local slope = (torquemax - torquemin)/(maxrpm-idlerpm)
+local inertia = flywheelweight* 3.1416^2
+
+-- Input values --
+local Throttle = 0
+local Active = 0
+local Gearbox = 0
+-- output values --
+local RPM = 0
+local Torque = 0
+-- misc values --
+local flywheelSpeed = 0
+
+
+if CLIENT then
+    engine = hologram.create(chip():localToWorld(Vector(0,1.5,0)),chip():localToWorldAngles(Angle(-90,0,0)),"models/props_c17/TrapPropeller_Engine.mdl",Vector(0.75,0.75,1))
+    engine:setParent(chip())
+    
+end
+
+if SERVER then
+    chip():setColor(Color(255,255,255,1))
+    inputs = {"Throttle" , "Active" , "Gearbox"}
+    inputtypes = {"number","number","wirelink"}
+    wire.adjustInputs(inputs, inputtypes, nil)
+    
+    outputs = {"RPM" , "Torque"}
+    outputstypes = {"number","number"}
+    wire.adjustOutputs(outputs, outputstypes, nil)
+    
+    hook.add("Input", "inputupdate", function(Input, value) 
+        if Input == "Throttle" then
+           Throttle = math.clamp(value,0,100)
+        end
+        if Input == "Active" then
+           Active = math.clamp(value,0,1)
+        end
+        if Input == "Gearbox" then
+           Gearbox = value 
+        end
+        
+        end)
+        
+    hook.add("Tick", "clock", function()
+        Torque = RPM * slope
+        local drag = torquemax * (RPM/maxrpm * (100-Throttle)/100)/inertia --6,46
+        
+        RPM =  math.clamp(RPM+Torque/inertia-drag,idlerpm,maxrpm)
+      
+
+        wire.triggerOutput(chip(),"RPM",RPM)
+        wire.triggerOutput(chip(),"Torque",Torque)
+    end)
+end

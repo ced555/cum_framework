@@ -1,0 +1,78 @@
+--@name cum_framework/CUM differential
+--@author ced555
+--@shared
+--@model models/props_pipes/pipe02_tjoint01.mdl
+
+-- SETTINGS --
+local finaldrive = 8
+local ratios = {5,3,1.5,1,0.8}
+-- SETTINGS --
+
+local wheelrpm = 0
+local driving = 1
+local ratio = 0
+local gear = 1
+
+
+local clutch = 0
+local brakes = 0
+local wheels = {}
+
+local wheelspeeds = {}
+local chiphys = chip():getPhysicsObject()
+local torque = 0
+local engine = 0
+
+if SERVER then
+    outputtypes = {"number","number","number"}
+    outputs = {"WheelRPM","Driving","Ratio"}
+    wire.adjustOutputs(outputs,outputtypes,nil)
+    inputs = {"Engine","Clutch","Brakes","Wheels","Gear"}
+    inputtypes = {"wirelink","number","number","array","number"}
+    description = {"Engine chip","0 or 1","Brake force, 0-100 or more","Link to and adv entity marker"}
+    wire.adjustInputs(inputs,inputtypes,description)
+    
+    hook.add("tick","clock",function()
+        if engine:isValid() then
+            torque = engine["Torque"] * ratio
+            print(torque)
+        else
+            torque = 0
+        end
+        
+        
+        for i = 1,table.count(wheels) do
+            wheelspeeds[i] = math.abs(wheels[i]:getAngleVelocity()[2] * ratio/360*60)
+            wheels[i]:applyTorque(Vector(torque * driving,0,0))
+            wheelrpm = wheelrpm + wheelspeeds[i]
+        end
+        wheelrpm=wheelrpm/table.count(wheelspeeds)
+        wire.triggerOutput(chip(),"WheelRPM",wheelrpm)
+        wire.triggerOutput(chip(),"Driving",driving)
+    end)
+    hook.add("Input", "inputupdate", function(Input, value) 
+        if Input == "Clutch" then
+            clutch = math.clamp(value,0,1)
+        end
+        if Input == "Brakes" then
+            brakes = math.abs(value)
+        end
+        if Input == "Wheels" then
+            wheels = value
+            table.empty(wheelspeeds)
+        end
+        if Input == "Gear" then
+            gear = math.clamp(value,1,table.count(ratios))
+            ratio = ratios[gear] * finaldrive
+            print(gear)
+            wire.triggerOutput(chip(),"Ratio",ratio)
+        end
+        if Input == "Engine" then
+            engine = value
+        end
+    end)
+end
+
+if CLIENT then
+    
+end
