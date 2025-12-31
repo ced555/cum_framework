@@ -21,7 +21,7 @@ local RPM = 0
 local Torque = 0
 -- misc values --
 local flywheelSpeed = 0
-
+local driving = 0
 
 if CLIENT then
     engine = hologram.create(chip():localToWorld(Vector(0,1.5,0)),chip():localToWorldAngles(Angle(-90,0,0)),"models/props_c17/TrapPropeller_Engine.mdl",Vector(0.75,0.75,1))
@@ -30,6 +30,9 @@ if CLIENT then
 end
 
 if SERVER then
+    local enginesound = sound.create(chip(),"Airboat_engine_idle")
+    enginesound:setVolume(1,nil)
+    enginesound:play()
     chip():setColor(Color(255,255,255,1))
     inputs = {"Throttle" , "Active" , "Gearbox"}
     inputtypes = {"number","number","wirelink"}
@@ -53,12 +56,22 @@ if SERVER then
         end)
         
     hook.add("Tick", "clock", function()
-        Torque = RPM * slope
-        local drag = torquemax * (RPM/maxrpm * (100-Throttle)/100)/inertia --6,46
+        Torque = RPM * slope * Throttle/100 * (RPM < maxrpm and 1 or 0) 
+        enginesound:setPitch(RPM/maxrpm*125)
+        if Gearbox then
+            driving = Gearbox["Driving"]
+            wheelrpm = Gearbox["WheelRPM"]
+            ratio = Gearbox["Ratio"]
+        else
+            driving = 0
+        end
         
-        RPM =  math.clamp(RPM+Torque/inertia-drag,idlerpm,maxrpm)
-      
-
+        if driving == 0 then
+            local drag = torquemax * ((RPM-idlerpm)/maxrpm * tonumber(100-Throttle)/100)/inertia
+            RPM = math.clamp(RPM+Torque/inertia - drag,idlerpm,maxrpm)*Active
+        elseif driving == 1 then
+            RPM = math.clamp(idlerpm + wheelrpm * ratio,idlerpm,maxrpm) * Active
+        end
         wire.triggerOutput(chip(),"RPM",RPM)
         wire.triggerOutput(chip(),"Torque",Torque)
     end)
