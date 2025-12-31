@@ -14,7 +14,7 @@ local ratio = 0
 local gear = 1
 
 
-local clutch = 0
+local clutch = 0 --lol
 local brakes = 0
 local wheels = {}
 
