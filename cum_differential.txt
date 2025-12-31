@@ -1,11 +1,11 @@
 --@name cum_framework/CUM differential
 --@author ced555
---@shared
+--@server
 --@model models/props_pipes/pipe02_tjoint01.mdl
 
 -- SETTINGS --
-local finaldrive = 8
-local ratios = {5,3,1.5,1,0.8}
+local finaldrive = 5
+local ratios = {5,3,2,2.5,2,1.75}
 -- SETTINGS --
 
 local wheelrpm = 0
@@ -13,16 +13,15 @@ local driving = 1
 local ratio = 0
 local gear = 1
 
-
-local clutch = 0 --lol
+local clutch = 0
 local brakes = 0
 local wheels = {}
 
-local wheelspeeds = {}
+local wheelspeeds = {0}
 local chiphys = chip():getPhysicsObject()
 local torque = 0
 local engine = 0
-
+local wheelholos = {}
 if SERVER then
     outputtypes = {"number","number","number"}
     outputs = {"WheelRPM","Driving","Ratio"}
@@ -32,27 +31,36 @@ if SERVER then
     description = {"Engine chip","0 or 1","Brake force, 0-100 or more","Link to and adv entity marker"}
     wire.adjustInputs(inputs,inputtypes,description)
     
-    hook.add("tick","clock",function()
-        if engine:isValid() then
+    chip():setPhysicsUpdateListener( function()
+        if engine then
             torque = engine["Torque"] * ratio
-            print(torque)
+            for i = 1,#wheels do
+                local wheel = wheels[i]
+                local x = wheel:localToWorldVector( wheel:getAngleVelocity() ):dot( wheelholos[i]:getForward() )/6
+                wheelspeeds[i] = math.abs(x)
+                
+                local brakeLimit = brakes * 1000
+                
+                local inertia = math.abs( wheel:localToWorldVector( wheel:getInertia() ):dot( wheelholos[i]:getForward() ) )
+
+                if torque ~= 0 or brakes ~= 0 then
+                    wheel:applyTorque( wheelholos[i]:getForward() * torque * driving + wheelholos[i]:getForward() /#wheels * ( inertia * 5 * -math.clamp( x, -brakeLimit, brakeLimit ) ) )
+                end
+                
+        end
+        wheelrpm=math.max(unpack(wheelspeeds))
+        --printTable(wheelspeeds)
+        
+        wire.triggerOutput(chip(),"WheelRPM",wheelrpm)
+        wire.triggerOutput(chip(),"Driving",driving)
         else
             torque = 0
         end
-        
-        
-        for i = 1,table.count(wheels) do
-            wheelspeeds[i] = math.abs(wheels[i]:getAngleVelocity()[2] * ratio/360*60)
-            wheels[i]:applyTorque(Vector(torque * driving,0,0))
-            wheelrpm = wheelrpm + wheelspeeds[i]
-        end
-        wheelrpm=wheelrpm/table.count(wheelspeeds)
-        wire.triggerOutput(chip(),"WheelRPM",wheelrpm)
-        wire.triggerOutput(chip(),"Driving",driving)
-    end)
+    end )
+    
     hook.add("Input", "inputupdate", function(Input, value) 
         if Input == "Clutch" then
-            clutch = math.clamp(value,0,1)
+            driving = value ~= 0 and 0 or 1
         end
         if Input == "Brakes" then
             brakes = math.abs(value)
@@ -60,11 +68,18 @@ if SERVER then
         if Input == "Wheels" then
             wheels = value
             table.empty(wheelspeeds)
+            for i=1,#wheels do 
+                local wheel = wheels[i]
+                local holo = hologram.create(wheel:getPos(),chip():getAngles(),"models/props_c17/doll01.mdl")
+                holo:setColor(Color(255,255,255,0))
+                
+                wheelholos[i] = holo
+                holo:setParent(wheel)
+            end
         end
         if Input == "Gear" then
-            gear = math.clamp(value,1,table.count(ratios))
-            ratio = ratios[gear] * finaldrive
-            print(gear)
+            gear = math.clamp(value,1,#ratios)
+            ratio = ratios[math.round(gear)] * finaldrive
             wire.triggerOutput(chip(),"Ratio",ratio)
         end
         if Input == "Engine" then
@@ -73,6 +88,3 @@ if SERVER then
     end)
 end
 
-if CLIENT then
-    
-end
