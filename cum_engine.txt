@@ -1,11 +1,11 @@
 --@name cum_framework/CUM engine
 --@author
---@shared
+--@server
 --@model models/props_c17/SuitCase001a.mdl
 
 -- Engine Values --
-local torquemin = 40
-local torquemax = 119
+local torquemin = 125
+local torquemax = 275
 local idlerpm = 900
 local maxrpm = 8000
 local flywheelweight = 0.06
@@ -23,13 +23,11 @@ local Torque = 0
 local flywheelSpeed = 0
 local driving = 0
 
-if CLIENT then
-    engine = hologram.create(chip():localToWorld(Vector(0,1.5,0)),chip():localToWorldAngles(Angle(-90,0,0)),"models/props_c17/TrapPropeller_Engine.mdl",Vector(0.75,0.75,1))
-    engine:setParent(chip())
-    
-end
+
 
 if SERVER then
+    engine = hologram.create(chip():localToWorld(Vector(0,1.5,0)),chip():localToWorldAngles(Angle(-90,0,0)),"models/props_c17/TrapPropeller_Engine.mdl",Vector(0.75,0.75,1))
+    engine:setParent(chip())
     local enginesound = sound.create(chip(),"Airboat_engine_idle")
     enginesound:setVolume(1,nil)
     enginesound:play()
