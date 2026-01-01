@@ -8,7 +8,7 @@
 --engine now check wheels that are being driven, driving output gives amount of wheels being driven
 --torque is divided by the amount of wheels that are being driven IN THE ENGINE chip
 --rpm = the highest RPM of the wheels of the gearboxes
- 
+
 -- Engine Values --
 local torquemin = 40
 local torquemax = 110
@@ -28,7 +28,8 @@ local torque = 0 --torque given to each wheel
 -- values taken from gearboxes values --
 local gearbox = {} -- list of gearboxes
 local driving = 0 -- amount of wheels being driven
---local gearboxrpms = {} -- table of rpms
+
+
 local gbrpm = 0 -- highest rpm out of every gearbox
 
 
@@ -62,7 +63,7 @@ if SERVER then
         
     end)
         
-    hook.add("Tick", "clock", function()
+    timer.create("clock",1/16,0, function()
         gbrpm = 0
         driving = 0
         for i = 1, #gearbox do 
@@ -72,7 +73,11 @@ if SERVER then
         gbrpm = gbrpm/#gearbox
         
         torque = RPM * slope * throttle/100 * (RPM < maxrpm and 1 or 0) / math.clamp(driving,1,99999)
-        enginesound:setPitch(RPM/maxrpm*125)
+        enginesound:setPitch( RPM/maxrpm*125)
+        
+        
+        --gbrpm = math.add(unpack(gearboxrpms))
+        --print(gbrpm)
         
         if driving == 0 then
             local drag = torquemax * ((RPM-idlerpm)/maxrpm * tonumber(100-throttle)/100)/inertia
