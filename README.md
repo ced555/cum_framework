@@ -2,7 +2,7 @@
 
 **a regular acf controller SHOULD work, not as a wirelink tho but if you do not have such a chip follow the following tutorial**
 
-**This tutorial expects you to have a FUNCTIONING car and some basic wiremod knowledge**
+**This tutorial expects you to have a FUNCTIONING (suspension and steering) car and some basic wiremod knowledge**
 
 Wire the Gearbox and the transmission's wirelinks to each other and 
 
