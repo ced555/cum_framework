@@ -3,7 +3,7 @@
 --@server
 --@model models/props_pipes/pipe02_tjoint01.mdl
 
- 
+
 local function tonum( bool )
 if bool == true then return 1
 else return 0 end
@@ -25,23 +25,22 @@ local brakes = 0
 local wheels = {}
 
 local wheelspeeds = {0}
-local chiphys = chip():getPhysicsObject()
 local torque = 0
 local engine = 0
 local wheelholos = {}
 if SERVER then
-    local outputtypes = {"number","number","number","number"}
-    local outputs = {"GearboxRPM","Driving","Ratio","Wheelamount"}
+    local outputtypes = {"number","number","number",}
+    local outputs = {"GearboxRPM","Driving","Ratio",}
     wire.adjustOutputs(outputs,outputtypes,nil)
     local inputs = {"Engine","Clutch","Brakes","Wheels","Gear"}
     local inputtypes = {"wirelink","number","number","array","number"}
     local description = {"Engine chip","0 or 1","Brake force, 0-100 or more","Link to and adv entity marker"}
     wire.adjustInputs(inputs,inputtypes,description)
     
-    hook.add("Tick", "clock", function()
+    timer.create("clock",1/16,0, function()
         if engine then
-            torque = engine["Torque"] * ratio * (1-clutch)
-                print(torque)
+            torque = engine["Torque"] * ratio * (1-clutch)*4.25 --reduced it from every tick (every 1/66) to 1/16 so i had to buff it
+            --print(torque)
             gbrpm = 0
             for i = 1,#wheels do
                 local wheel = wheels[i]
@@ -50,16 +49,9 @@ if SERVER then
                 local brakeLimit = brakes * 1000
                 local inertia = math.abs( wheel:localToWorldVector( wheel:getInertia() ):dot( wheelholos[i]:getForward() ) )
                 gbrpm = gbrpm + wheelspeeds[i] * math.abs(ratio)
-                
-                if torque ~= 0 or brakes ~= 0 then
-                    wheel:applyTorque( wheelholos[i]:getForward() * torque * driving + wheelholos[i]:getForward()* ( inertia * 5 * -math.clamp( x, -brakeLimit, brakeLimit ) ) )
-                end
-                
-        end
+                wheel:applyTorque( wheelholos[i]:getForward() * torque * driving + wheelholos[i]:getForward()* ( inertia * 5 * -math.clamp( x, -brakeLimit, brakeLimit ) ) )
+            end
         gbrpm = gbrpm/#wheels
-        --gbrpm=math.max(unpack(wheelspeeds)) * math.abs(ratio)
-        --printTable(wheelspeeds)
-        
         wire.triggerOutput(chip(),"GearboxRPM",gbrpm)
         wire.triggerOutput(chip(),"Driving",driving)
         else
