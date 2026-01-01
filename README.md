@@ -4,9 +4,11 @@
 
 **This tutorial expects you to have a FUNCTIONING (suspension and steering) car and some basic wiremod knowledge**
 
-Wire the Gearbox and the transmission's wirelinks to each other and 
+With an ADV entity marker, link up all the gearboxes together
 
-Wire the Engine:Wheels onto a wiremod adv entity marker with all the wheels linked to it
+Wire the Engine:gearboxes to the adv entity marker
+
+Wire the Gearbox:Wheels onto a wiremod adv entity marker with all the wheels linked to it
 
 Wire the Engine:throttle to a wiremod output that give a value from 0-100 (you can use a SUBSTRACT gate with A as W on a pod controller and B as S on a pod controller, then a multiply gate with A as the SUBSTRACT gate and B as a constant value of 100)
 
