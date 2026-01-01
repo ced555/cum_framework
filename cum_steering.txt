@@ -1,4 +1,90 @@
---@name CUM steering
---@author ced555
---@shared
+--@name cum_framework/cum_steering.txt
+--@author Mikey
+--@server
+--@model models/hunter/plates/plate025x025.mdl
 
+STEER_RATE = 180 -- angle per second
+
+
+STEER_ACCEL = 1
+
+
+MAX_ANG = 45
+MIN_ANG = 20
+
+
+SPEED_FOR_MIN_ANG = 900
+
+
+CASTER_MUL = 5
+
+COUNTER_STEER_DEADZONE = 0.05
+COUNTER_STEER_MUL = 45 -- Max abs angle of the counter steer
+COUNTER_STEER_MIN_SPEED = 400
+
+wire.adjustInputs( {
+    "Base",
+    "A",
+    "D"
+}, {
+    "entity",
+    "number",
+    "number"
+} )
+
+local arrowQuat = chip():getAngles():getQuaternion() * Angle( 0, 90, 90 ):getQuaternion()
+
+local clockForward = hologram.create( chip():localToWorld( Vector( 10, 0, 0 ) ), arrowQuat:getEulerAngle(), "models/props_c17/streetsign005b.mdl", Vector( 0.4, 1, 1 ) )
+clockForward:setMaterial( "lights/white" )
+clockForward:setColor4Part( 255, 127, 0, 127 )
+clockForward:setParent( chip() )
+
+local base = nil
+local steer = 0
+local steerAngle = 0
+
+hook.add( "Tick", "UpdateSteering", function()
+    if not isValid( base ) then return end
+    local targetSteerAngle = 0
+    
+    local normVel = base:getVelocity()
+    
+    if normVel:getLengthSqr() ~= 0 then
+        normVel = normVel:getNormalized() * math.clamp( normVel:getLength() - COUNTER_STEER_MIN_SPEED, 0, 1 )
+    end
+    
+    targetSteerAngle = targetSteerAngle + MAX_ANG * steer
+    
+    local fadeSteer = math.min( math.abs( base:getVelocity():dot( base.holo:getForward() ) / SPEED_FOR_MIN_ANG ), 1 ) * ( MAX_ANG - MIN_ANG ) * steer
+
+    targetSteerAngle = targetSteerAngle - fadeSteer
+    
+    -- COUNTER STEER --
+    
+    local slide = math.abs( normVel:dot( base.holo:getRight() ) ) > COUNTER_STEER_DEADZONE and math.abs( normVel:dot( base.holo:getRight() ) ) or 0
+    
+    targetSteerAngle = targetSteerAngle - slide * COUNTER_STEER_MUL
+    
+    targetSteerAngle = math.clamp( targetSteerAngle, -MAX_ANG, MAX_ANG )
+    
+    steerAngle = steerAngle + math.clamp( targetSteerAngle - steerAngle, -STEER_RATE * game.getTickInterval(), STEER_RATE * game.getTickInterval() )
+    chip():setAngles( base.holo:localToWorldAngles( Angle( 0, steerAngle, 0 ) ) )
+    
+    chip():setFrozen( true )
+end )
+
+hook.add( "Input", "UpdateInput", function( name, value )
+    if name == "Base" and isValid( value ) then
+        base = value
+        base.holo = hologram.create( base:getPos(), chip():getAngles(), "models/props_c17/doll01.mdl" )
+        base.holo:setParent( base )
+    end
+    
+    if name == "A" then
+        steer = steer + ( value == 1 and 1 or -1 )
+    end
+    
+    if name == "D" then
+        steer = steer + ( value == 1 and -1 or 1 )
+    end
+end )

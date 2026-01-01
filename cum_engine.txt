@@ -3,9 +3,15 @@
 --@server
 --@model models/props_c17/SuitCase001a.mdl
 
+
+--engine has gearbox wirelinks that add up
+--engine now check wheels that are being driven, driving output gives amount of wheels being driven
+--torque is divided by the amount of wheels that are being driven IN THE ENGINE chip
+--rpm = the highest RPM of the wheels of the gearboxes
+
 -- Engine Values --
-local torquemin = 125
-local torquemax = 275
+local torquemin = 40
+local torquemax = 110
 local idlerpm = 900
 local maxrpm = 8000
 local flywheelweight = 0.06
@@ -13,16 +19,17 @@ local slope = (torquemax - torquemin)/(maxrpm-idlerpm)
 local inertia = flywheelweight* 3.1416^2
 
 -- Input values --
-local Throttle = 0
-local Active = 0
-local Gearbox = 0
+local throttle = 0
+local active = 0
+local gearbox = 0
 -- output values --
 local RPM = 0
-local Torque = 0
--- misc values --
-local flywheelSpeed = 0
-local driving = 0
-
+local torque = 0 --torque given to each wheel
+-- values taken from gearboxes values --
+local gearbox = {} -- list of gearboxes
+local driving = 0 -- amount of wheels being driven
+--local gearboxrpms = {} -- table of rpms
+local gbrpm = 0 -- highest rpm out of every gearbox
 
 
 if SERVER then
@@ -32,8 +39,8 @@ if SERVER then
     enginesound:setVolume(1,nil)
     enginesound:play()
     chip():setColor(Color(255,255,255,1))
-    inputs = {"Throttle" , "Active" , "Gearbox"}
-    inputtypes = {"number","number","wirelink"}
+    inputs = {"Throttle" , "Active" , "Gearboxes"}
+    inputtypes = {"number","number","array"}
     wire.adjustInputs(inputs, inputtypes, nil)
     
     outputs = {"RPM" , "Torque"}
@@ -42,35 +49,38 @@ if SERVER then
     
     hook.add("Input", "inputupdate", function(Input, value) 
         if Input == "Throttle" then
-           Throttle = math.clamp(value,0,100)
+           throttle = math.clamp(value,0,100)
         end
         if Input == "Active" then
-           Active = math.clamp(value,0,1)
+           active = math.clamp(value,0,1)
         end
-        if Input == "Gearbox" then
-           Gearbox = value 
+        if Input == "Gearboxes" then
+            for i = 1, #value do
+                gearbox[i] = wire.getWirelink(value[i])
+            end
         end
         
-        end)
+    end)
         
     hook.add("Tick", "clock", function()
-        Torque = RPM * slope * Throttle/100 * (RPM < maxrpm and 1 or 0) 
-        enginesound:setPitch(RPM/maxrpm*125)
-        if Gearbox then
-            driving = Gearbox["Driving"]
-            wheelrpm = Gearbox["WheelRPM"]
-            ratio = Gearbox["Ratio"]
-        else
-            driving = 0
+        gbrpm = 0
+        driving = 0
+        for i = 1, #gearbox do 
+            gbrpm = gbrpm + gearbox[i]["GearboxRPM"]
+            driving = driving + gearbox[i]["Driving"]
         end
+        gbrpm = gbrpm/#gearbox
+        
+        torque = RPM * slope * throttle/100 * (RPM < maxrpm and 1 or 0) / math.clamp(driving,1,99999)
+        enginesound:setPitch(RPM/maxrpm*125)
         
         if driving == 0 then
-            local drag = torquemax * ((RPM-idlerpm)/maxrpm * tonumber(100-Throttle)/100)/inertia
-            RPM = math.clamp(RPM+Torque/inertia - drag,idlerpm,maxrpm)*Active
-        elseif driving == 1 then
-            RPM = math.clamp(idlerpm + wheelrpm * ratio,idlerpm,maxrpm) * Active
+            local drag = torquemax * ((RPM-idlerpm)/maxrpm * tonumber(100-throttle)/100)/inertia
+            RPM = math.clamp(RPM+torque/inertia - drag,idlerpm,maxrpm)*active
+        elseif driving ~= 0 then
+            RPM = math.clamp(idlerpm + gbrpm,idlerpm,maxrpm) * active
         end
         wire.triggerOutput(chip(),"RPM",RPM)
-        wire.triggerOutput(chip(),"Torque",Torque)
+        wire.triggerOutput(chip(),"Torque",torque)
     end)
 end
