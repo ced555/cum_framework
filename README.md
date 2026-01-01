@@ -58,7 +58,7 @@ These are the stock gearbox settings in case you mess something up (idk how you 
 
 local finaldrive = 5
 
-local ratios = {5,3,2,2.5,2,1.75}
+local ratios = {-5,5,3,2,2.5,2,1.75}
 
 -- SETTINGS --
 
