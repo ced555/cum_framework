@@ -1,0 +1,210 @@
+--@name cum_framework/CUM Transmission
+--@author ced555
+--@server
+--@model models/props_vents/vent_small_straight002.mdl
+
+--chip is fixed model and the model of the gearbox is a holo applied onto it,
+
+function wheeltorque(engine, brakes, wheels,wheelholos ,ratio,clutch)
+    local gbrpm = 0
+    if engine then
+        local driving = (1-clutch) * #wheels
+        local torque = engine["Torque"]* ratio * (1-clutch)
+        local wheelspeeds = {}
+        for i = 1,#wheels do
+            local wheel = wheels[i]
+            local x = wheel:localToWorldVector( wheel:getAngleVelocity() ):dot( wheelholos[i]:getForward() )/6
+            wheelspeeds[i] = math.abs(x)
+            local brakeLimit = brakes * wheelspeeds[i]
+            local inertia = math.abs( wheel:localToWorldVector( wheel:getInertia() ):dot( wheelholos[i]:getForward() ) )
+            gbrpm = gbrpm + wheelspeeds[i] * math.abs(ratio)
+            local brakemath = wheelholos[i]:getForward()* ( inertia * 10 * -math.clamp( x, -brakeLimit, brakeLimit ))
+            if torque != 0 or brakes > 0 then
+                wheel:applyTorque( wheelholos[i]:getForward() * torque * driving + brakemath  )
+            end
+            
+        end
+        gbrpm = gbrpm/#wheels
+        return gbrpm,driving
+    else
+        local gbrpm = 0
+        local driving = 0
+        local wheelspeeds = {}
+        for i = 1,#wheels do
+            local wheel = wheels[i]
+            local x = wheel:localToWorldVector( wheel:getAngleVelocity() ):dot( wheelholos[i]:getForward() )/6
+            wheelspeeds[i] = math.abs(x)
+            local brakeLimit = brakes * wheelspeeds[i]
+            local inertia = math.abs( wheel:localToWorldVector( wheel:getInertia() ):dot( wheelholos[i]:getForward() ) )
+            local brakemath = wheelholos[i]:getForward()* ( inertia * 10 * -math.clamp( x, -brakeLimit, brakeLimit ))
+            if brakes > 0 then
+                wheel:applyTorque( wheelholos[i]:getForward()* brakemath  )
+            end
+            gbrpm = gbrpm + wheelspeeds[i]
+        end
+        
+        gbrpm = gbrpm/#wheels
+        --print(gbrpm)
+        return gbrpm,driving
+    end
+    
+    
+end
+
+function gearbox(finaldrive , ratios, dualclutch, model, posoffset, angoffset)
+    gearbox = hologram.create(chip():localToWorld(posoffset),chip():localToWorldAngles(angoffset),model,Vector(1))
+    gearbox:setParent(chip())
+    local gbrpm = 0
+    local driving = 1
+    local ratio = 0
+    local gear = 1
+
+    local clutch = 0
+    local rightclutch = 0
+    local leftclutch = 0
+    
+    local brakes = 0
+    local rightbrakes = 0
+    local leftbrakes = 0
+    
+    local wheels = {}
+    local leftwheels = {}
+    local rightwheels = {}
+    
+    local wheelholos = {}
+    local leftwheelholos = {}
+    local rightwheelholos = {}
+
+    local wheelspeeds = {}
+    local rightwheelspeeds = {}
+    local leftwheelspeeds = {}
+    
+    local torque = 0
+    local engine = 0
+    
+    local outputtypes = {"number","number","number",}
+    local outputs = {"GearboxRPM","Driving","Ratio",}
+    
+    local inputs = {}
+    local inputtypes = {}
+    local description = {}
+    wire.adjustOutputs(outputs,outputtypes,nil)
+    
+    if not dualclutch then
+        inputs = {"Engine","Clutch","Brakes","Wheels","Gear"}
+        inputtypes = {"wirelink","number","number","array","number"}
+        description = {"Engine chip","0 to 1","Brake force, 0-100 or more","Link to and adv entity marker"}
+    else
+        inputs = {"Engine","Rightclutch","Leftclutch","RightBrakes","LeftBrakes","RightWheels","LeftWheels","Gear"}
+        inputtypes = {"wirelink","number","number","number","number","array","array","number"}
+        description = {"Engine chip","0 to 1","0 to 1","Brake force, 0-100 or more","Brake force, 0-100 or more","Link to and adv entity marker"}
+    end
+   
+    wire.adjustInputs(inputs,inputtypes,description)
+    
+    hook.add("Input", "inputupdate", function(Input, value) 
+        if Input == "Clutch" then
+            clutch = value
+        end
+        if Input == "Leftclutch" then
+            leftclutch = value
+        end
+        if Input == "Rightclutch" then
+            rightclutch = value
+        end
+        
+        if Input == "Brakes" then
+            brakes = math.abs(value)
+        end
+        if Input == "LeftBrakes" then
+            leftbrakes = math.abs(value)
+        end
+        if Input == "RightBrakes" then
+            rightbrakes = math.abs(value)
+        end
+        
+        if Input == "Wheels" then
+            wheels = value
+            table.empty(wheelspeeds)
+            driving =  #wheels
+            for i=1,#wheels do 
+                local wheel = wheels[i]
+                local holo = hologram.create(wheel:getPos(),chip():getAngles(),"models/props_c17/doll01.mdl")
+                holo:setColor(Color(255,255,255,155))
+                wheelholos[i] = holo
+                holo:setParent(wheel)
+            end
+        end
+        
+        if Input == "LeftWheels" then
+            leftwheels = value
+            table.empty(leftwheelspeeds)
+            driving =  #leftwheels + #rightwheels
+            for i=1,#leftwheels do 
+                local wheel = leftwheels[i]
+                local holo = hologram.create(wheel:getPos(),chip():getAngles(),"models/props_c17/doll01.mdl")
+                holo:setColor(Color(255,255,255,155))
+                leftwheelholos[i] = holo
+                holo:setParent(wheel)
+            end
+        end
+        
+        if Input == "RightWheels" then
+            rightwheels = value
+            table.empty(rightwheelspeeds)
+            driving =  #leftwheels + #rightwheels
+            for i=1,#rightwheels do 
+                local wheel = rightwheels[i]
+                local holo = hologram.create(wheel:getPos(),chip():getAngles(),"models/props_c17/doll01.mdl")
+                holo:setColor(Color(255,255,255,155))
+                rightwheelholos[i] = holo
+                holo:setParent(wheel)
+            end
+        end
+        
+        if Input == "Gear" then
+            gear = math.clamp(value,1,#ratios)
+            ratio = ratios[math.round(gear)] * finaldrive
+            wire.triggerOutput(chip(),"Ratio",ratio)
+        end
+        if Input == "Engine" then
+            engine = value
+        end
+        
+    end)
+-----------------------------------------------------------------------------------------
+    timer.create("clock",1/24,0, function()
+        if engine then
+            torque = engine["Torque"]
+        else
+            torque = 0
+            ratio = 1
+        end
+        if not dualclutch then
+            gbrpm, driving = wheeltorque(engine, brakes, wheels,wheelholos ,ratio,clutch)
+            
+        else
+            local gbrpm1 = 0
+            local gbrpm2 = 0
+            local driving1 = 0
+            local driving2 = 0
+            
+            gbrpm1,driving1 = wheeltorque(engine, leftbrakes, leftwheels,leftwheelholos ,ratio,leftclutch)
+            gbrpm2,driving2 = wheeltorque(engine, rightbrakes, rightwheels,rightwheelholos ,ratio,rightclutch)
+            gbrpm = math.max(gbrpm1,gbrpm2)
+            driving = driving1+ driving2
+        end
+        wire.triggerOutput(chip(),"GearboxRPM",gbrpm)
+        wire.triggerOutput(chip(),"Driving",driving)
+    end )
+end
+
+-- SETTINGS --
+local finaldrive = -5
+local ratios = {-5,5,3,2,2.5,2,1.5,1,0.75}
+-- SETTINGS --
+
+if SERVER then
+    gearbox(finaldrive,ratios,false,"models/props_pipes/pipe02_tjoint01.mdl",Vector(0,4,0),Angle(0,0,0))
+end
+

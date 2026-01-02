@@ -1,40 +1,39 @@
 --@name cum_framework/CUM engine
---@author
+--@author ced555
 --@server
 --@model models/props_c17/SuitCase001a.mdl
 
-
---engine has gearbox wirelinks that add up
---engine now check wheels that are being driven, driving output gives amount of wheels being driven
---torque is divided by the amount of wheels that are being driven IN THE ENGINE chip
---rpm = the highest RPM of the wheels of the gearboxes
-
--- Engine Values --
-local torquemin = 40
-local torquemax = 110
+-- Engine Settings --
+local torquemin = 60            * 4.5-- made it run every 1/16th of a second instead of every tick so its has to be buffed to remain the same as before
+local torquemax = 110           * 4.5
 local idlerpm = 900
 local maxrpm = 8000
 local flywheelweight = 0.06
 local slope = (torquemax - torquemin)/(maxrpm-idlerpm)
 local inertia = flywheelweight* 3.1416^2
+local model = "models/props_c17/TrapPropeller_Engine.mdl"
+local modeloffset = Vector(0,1.5,0)
+local angleoffset = Angle(-90,0,0)
+local modelscale = Vector(0.75,0.75,1)
+-------- Please do not modify the what is under here --------
+
 
 -- Input values --
 local throttle = 0
 local active = 0
 local gearbox = 0
+
 -- output values --
 local RPM = 0
 local torque = 0 --torque given to each wheel
+
 -- values taken from gearboxes values --
 local gearbox = {} -- list of gearboxes
 local driving = 0 -- amount of wheels being driven
-
-
 local gbrpm = 0 -- highest rpm out of every gearbox
 
-
 if SERVER then
-    engine = hologram.create(chip():localToWorld(Vector(0,1.5,0)),chip():localToWorldAngles(Angle(-90,0,0)),"models/props_c17/TrapPropeller_Engine.mdl",Vector(0.75,0.75,1))
+    engine = hologram.create(chip():localToWorld(modeloffset),chip():localToWorldAngles(angleoffset),model,modelscale)
     engine:setParent(chip())
     local enginesound = sound.create(chip(),"Airboat_engine_idle")
     enginesound:setVolume(1,nil)
@@ -44,8 +43,8 @@ if SERVER then
     inputtypes = {"number","number","array"}
     wire.adjustInputs(inputs, inputtypes, nil)
     
-    outputs = {"RPM" , "Torque"}
-    outputstypes = {"number","number"}
+    outputs = {"RPM" , "Torque","Driving"}
+    outputstypes = {"number","number","number"}
     wire.adjustOutputs(outputs, outputstypes, nil)
     
     hook.add("Input", "inputupdate", function(Input, value) 
@@ -77,8 +76,7 @@ if SERVER then
         
         
         --gbrpm = math.add(unpack(gearboxrpms))
-        --print(gbrpm)
-        
+        wire.triggerOutput(chip(),"Driving",driving)
         if driving == 0 then
             local drag = torquemax * ((RPM-idlerpm)/maxrpm * tonumber(100-throttle)/100)/inertia
             RPM = math.clamp(RPM+torque/inertia - drag,idlerpm,maxrpm)*active
