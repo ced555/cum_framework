@@ -4,11 +4,11 @@
 --@model models/props_c17/SuitCase001a.mdl
 
 -- Engine Settings --
-local torquemin = 60            * 4.5-- made it run every 1/16th of a second instead of every tick so its has to be buffed to remain the same as before
-local torquemax = 110           * 4.5
-local idlerpm = 900
-local maxrpm = 8000
-local flywheelweight = 0.06
+local torquemin = 480            * 4.5-- made it run every 1/16th of a second instead of every tick so its has to be buffed to remain the same as before
+local torquemax = 590           * 4.5
+local idlerpm = 1500
+local maxrpm = 8500
+local flywheelweight = 0.02
 local slope = (torquemax - torquemin)/(maxrpm-idlerpm)
 local inertia = flywheelweight* 3.1416^2
 local model = "models/props_c17/TrapPropeller_Engine.mdl"
@@ -81,7 +81,7 @@ if SERVER then
             local drag = torquemax * ((RPM-idlerpm)/maxrpm * tonumber(100-throttle)/100)/inertia
             RPM = math.clamp(RPM+torque/inertia - drag,idlerpm,maxrpm)*active
         elseif driving ~= 0 then
-            RPM = math.clamp(idlerpm + gbrpm,idlerpm,maxrpm) * active
+            RPM = math.clamp(gbrpm,idlerpm,maxrpm) * active
         end
         wire.triggerOutput(chip(),"RPM",RPM)
         wire.triggerOutput(chip(),"Torque",torque)

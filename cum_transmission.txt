@@ -5,15 +5,16 @@
 
 --chip is fixed model and the model of the gearbox is a holo applied onto it,
 
-function wheeltorque(engine, brakes, wheels,wheelholos ,ratio,clutch)
+local function wheeltorque(engine, brakes, wheels,wheelholos ,ratio,clutch)
     local gbrpm = 0
     if engine then
         local driving = (1-clutch) * #wheels
         local torque = engine["Torque"]* ratio * (1-clutch)
         local wheelspeeds = {}
+        
         for i = 1,#wheels do
             local wheel = wheels[i]
-            local x = wheel:localToWorldVector( wheel:getAngleVelocity() ):dot( wheelholos[i]:getForward() )/6
+            local x = (chip():getAngleVelocity() - wheel:getAngleVelocity()):getLength()/6
             wheelspeeds[i] = math.abs(x)
             local brakeLimit = brakes * wheelspeeds[i]
             local inertia = math.abs( wheel:localToWorldVector( wheel:getInertia() ):dot( wheelholos[i]:getForward() ) )
@@ -30,9 +31,10 @@ function wheeltorque(engine, brakes, wheels,wheelholos ,ratio,clutch)
         local gbrpm = 0
         local driving = 0
         local wheelspeeds = {}
+        
         for i = 1,#wheels do
             local wheel = wheels[i]
-            local x = wheel:localToWorldVector( wheel:getAngleVelocity() ):dot( wheelholos[i]:getForward() )/6
+            local x = (chip():getAngleVelocity() - wheel:getAngleVelocity()):getLength()/6
             wheelspeeds[i] = math.abs(x)
             local brakeLimit = brakes * wheelspeeds[i]
             local inertia = math.abs( wheel:localToWorldVector( wheel:getInertia() ):dot( wheelholos[i]:getForward() ) )
@@ -51,7 +53,7 @@ function wheeltorque(engine, brakes, wheels,wheelholos ,ratio,clutch)
     
 end
 
-function gearbox(finaldrive , ratios, dualclutch, model, posoffset, angoffset)
+local function gearbox(finaldrive , ratios, dualclutch, model, posoffset, angoffset)
     gearbox = hologram.create(chip():localToWorld(posoffset),chip():localToWorldAngles(angoffset),model,Vector(1))
     gearbox:setParent(chip())
     local gbrpm = 0
@@ -82,14 +84,14 @@ function gearbox(finaldrive , ratios, dualclutch, model, posoffset, angoffset)
     local torque = 0
     local engine = 0
     
-    local outputtypes = {"number","number","number",}
-    local outputs = {"GearboxRPM","Driving","Ratio",}
+    local outputtypes = {"number","number","number","array"}
+    local outputs = {"GearboxRPM","Driving","Ratio","Gearbox"}
     
     local inputs = {}
     local inputtypes = {}
     local description = {}
     wire.adjustOutputs(outputs,outputtypes,nil)
-    
+    wire.triggerOutput(chip(),"Gearbox",{chip()})
     if not dualclutch then
         inputs = {"Engine","Clutch","Brakes","Wheels","Gear"}
         inputtypes = {"wirelink","number","number","array","number"}
@@ -173,7 +175,7 @@ function gearbox(finaldrive , ratios, dualclutch, model, posoffset, angoffset)
         
     end)
 -----------------------------------------------------------------------------------------
-    timer.create("clock",1/24,0, function()
+    timer.create("clock",1/16,0, function()
         if engine then
             torque = engine["Torque"]
         else
@@ -200,8 +202,8 @@ function gearbox(finaldrive , ratios, dualclutch, model, posoffset, angoffset)
 end
 
 -- SETTINGS --
-local finaldrive = -5
-local ratios = {-5,5,3,2,2.5,2,1.5,1,0.75}
+local finaldrive = 4.25
+local ratios = {-5,5,3,2.5,1.75,1.5}
 -- SETTINGS --
 
 if SERVER then

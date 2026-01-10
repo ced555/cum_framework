@@ -1,0 +1,97 @@
+--@name cum_framework/CUM steering ced
+--@author ced555
+--@server
+
+
+-- settings--
+local COUNTERSTEER_MUL = -45     --#if the countersteer goes the wrong way, put it in negative
+local COUNTERSTEER_MINSPEED = 2  --km/h minimum for countersteer to kick in
+
+local STEERSPEED = 14
+local STEER_MAXANG = 30
+
+-- settings--
+
+--values that will change a lot--
+local A = 0
+local D = 0
+local BASE
+local STEER = 0
+local STEER_INPUT = 0
+local COUNTERSTEER = 0
+
+local chipphys = chip():getPhysicsObject()
+-- 1 HU/S = 0.06858 km/h
+
+
+hook.add("Input", "wireupdate", function(inp, value) 
+    if inp == "BASE" then
+        BASE = value
+        print(BASE)
+    end
+    if inp == "A" then
+        A = value
+        STEER_INPUT = A - D
+    end
+    if inp == "D" then
+        D = value
+        STEER_INPUT = A - D
+    end
+    
+end)
+
+
+timer.create("steering",1/12,0,function()
+    if isValid(BASE) then
+        STEER = math.clamp( STEER - math.clamp(STEER,-STEERSPEED,STEERSPEED) * ( 1 - (A + D) ) + STEER_INPUT * STEERSPEED , -STEER_MAXANG , STEER_MAXANG )
+        local SLIDE = BASE:getLocalVelocity()[ 2 ] * COUNTERSTEER_MUL
+        local SPEED = math.abs( BASE:getLocalVelocity()[ 1 ] ) 
+        local COUNTERSTEER = SLIDE/(SPEED+10)
+        --print(SLIDE)
+        local angle = BASE:localToWorldAngles(Angle(0,math.clamp(STEER + COUNTERSTEER,-50,50),0))
+        
+        chip():setAngles(angle)
+    end
+
+    if not chip():isFrozen() and not chip():isPlayerHolding() then
+        chip():enableMotion(false)
+    end
+    
+end)
+
+
+wire.adjustInputs( { "BASE" , "A" , "D"} , {"e" ,"n" , "n"} )
+
+
+
+--[[
+
+
+@name ceds_steering_v1
+@inputs BASE:entity A D
+@strict
+@trigger none
+
+local STEER                 = 0
+
+local COUNTERSTEER          = 0
+local COUNTERSTEER_MUL      = -45 #if the countersteer goes the wrong way, put it in negative
+local COUNTERSTEER_MINSPEED = 2 #km/h minimum for
+
+local STEERSPEED = 14
+local STEER_MAXANG = 25
+timer( 1/12 , 0 , function() {
+    if (BASE:isValid()) {
+        STEER = clamp(STEER - clamp(STEER,-STEERSPEED,STEERSPEED) * !(A|D) + (A-D) * STEERSPEED,-STEER_MAXANG,STEER_MAXANG)
+        local SLIDE = BASE:velL()[2] * COUNTERSTEER_MUL
+        local SPEED = abs(BASE:velL()[1])
+        local COUNTERSTEER = SLIDE/(SPEED+1) * (toUnit("km/h",SPEED) > COUNTERSTEER_MINSPEED)
+        entity():setAng(BASE:toWorld(ang(0,clamp(STEER + COUNTERSTEER  ,-45,45),0)))
+    }
+    if ( !entity():isFrozen() & !entity():isPlayerHolding() ) {
+        entity():propFreeze( 1 )
+    } 
+
+})
+]]
+

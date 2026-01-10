@@ -1,0 +1,50 @@
+--@name cum controller
+--@author ced555
+--@shared
+
+local seat
+local w = 0
+local s = 0
+local space = 0
+local shift = 0
+
+local gearcount = 9
+local gear = 0
+
+if SERVER then
+    wire.adjustInputs({"Seat","W","S","Space","Shift","GearUp","GearDown"}, {"e","n","n","n","n","n","n"})
+    wire.adjustOutputs({"Throttle","RearBrakes","Gear"}, {"n","n","n"})
+    
+    hook.add("Input", "input", function(inp, value) 
+        if inp == "Seat" then seat = value end
+        if inp == "W" then
+            w = value
+            wire.triggerOutput(chip(), "Throttle" , w * 50 + shift * 50 * w) 
+        end
+        if inp == "S" then
+            s = value *0.25
+            wire.triggerOutput(chip(), "RearBrakes" , s + space) 
+        end
+        
+        if inp == "Space" then
+            space = value 
+            wire.triggerOutput(chip(), "RearBrakes" , s + space) 
+        end
+        
+        if inp == "Shift" then
+            shift = value
+            wire.triggerOutput(chip(), "Throttle" , w * 50 + shift * 50 * w) 
+        end
+        if inp == "GearUp" then
+            gear = math.clamp(gear + value,1,gearcount)
+            wire.triggerOutput(chip(),"Gear",gear) 
+        end
+        if inp == "GearDown" then 
+            gear = math.clamp(gear - value,1,gearcount)
+            wire.triggerOutput(chip(),"Gear",gear) 
+        end
+    end)
+
+end
+
+
